@@ -60,7 +60,7 @@
 %endif
 
 # Set pkg_release.
-%define pkg_release 1%{?buildid}%{?dist}
+%define pkg_release 1c%{?buildid}%{?dist}
 
 #
 # Three sets of minimum package version requirements in the form of Conflicts.
@@ -90,7 +90,7 @@
 %define kernel_prereq fileutils, module-init-tools >= 3.16-2, initscripts >= 8.11.1-1, grubby >= 8.28-2
 %define initrd_prereq dracut >= 001-7
 
-Name: kernel-spp
+Name: kernel-ml
 Summary: The Linux kernel. (The core of any Linux-based operating system.)
 Group: System Environment/Kernel
 License: GPLv2
