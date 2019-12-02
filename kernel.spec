@@ -1,7 +1,7 @@
 %global __spec_install_pre %{___build_pre}
 
 # Define the version of the Linux Kernel Archive tarball.
-%define LKAver 4.19.81
+%define LKAver 4.19.65
 
 # Define the buildid, if required.
 #define buildid .
@@ -149,6 +149,8 @@ Source3: cpupower.config
 
 #Custom Patches
 Patch9999: 0001-Revert-x86-fpu-Don-t-export-__kernel_fpu_-begin-end.patch
+Patch10001: 0001-scsi-target-core-Fix-TAS-handling-for-aborted-comman.patch
+Patch10002: 0002-scsi-target-core-Make-ABORT-and-LUN-RESET-handling-s.patch
 
 # Do not package the source tarball.
 NoSource: 0
