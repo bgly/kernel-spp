@@ -1,4 +1,4 @@
-From eb4fb0028ac95db37569224aa4b75d4501a316fb Mon Sep 17 00:00:00 2001
+From 66702104bf504aa43476ffebd49c14c17b09ef93 Mon Sep 17 00:00:00 2001
 From: Bart Van Assche <bvanassche@acm.org>
 Date: Tue, 27 Nov 2018 15:52:02 -0800
 Subject: [PATCH 1/2] scsi: target/core: Fix TAS handling for aborted commands
@@ -135,10 +135,10 @@ index 6d1179a..bca0f8a 100644
  
  		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 diff --git a/drivers/target/target_core_transport.c b/drivers/target/target_core_transport.c
-index f1b730b..34772bd 100644
+index fb642a6..4202b01 100644
 --- a/drivers/target/target_core_transport.c
 +++ b/drivers/target/target_core_transport.c
-@@ -1812,7 +1812,7 @@ void transport_generic_request_failure(struct se_cmd *cmd,
+@@ -1813,7 +1813,7 @@ void transport_generic_request_failure(struct se_cmd *cmd,
  	     cmd->transport_complete_callback)
  		cmd->transport_complete_callback(cmd, false, &post_ret);
  
@@ -147,7 +147,7 @@ index f1b730b..34772bd 100644
  		return;
  
  	switch (sense_reason) {
-@@ -2019,8 +2019,6 @@ static bool target_handle_task_attr(struct se_cmd *cmd)
+@@ -2020,8 +2020,6 @@ static bool target_handle_task_attr(struct se_cmd *cmd)
  	return true;
  }
  
@@ -156,7 +156,7 @@ index f1b730b..34772bd 100644
  void target_execute_cmd(struct se_cmd *cmd)
  {
  	/*
-@@ -2030,7 +2028,7 @@ void target_execute_cmd(struct se_cmd *cmd)
+@@ -2031,7 +2029,7 @@ void target_execute_cmd(struct se_cmd *cmd)
  	 * If the received CDB has aleady been aborted stop processing it here.
  	 */
  	spin_lock_irq(&cmd->t_state_lock);
@@ -165,7 +165,7 @@ index f1b730b..34772bd 100644
  		spin_unlock_irq(&cmd->t_state_lock);
  		return;
  	}
-@@ -3265,55 +3263,6 @@ static void translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason)
+@@ -3270,55 +3268,6 @@ static void translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason)
  }
  EXPORT_SYMBOL(transport_send_check_condition_and_sense);
  
@@ -222,7 +222,7 @@ index f1b730b..34772bd 100644
  {
  	unsigned long flags;
 diff --git a/include/target/target_core_base.h b/include/target/target_core_base.h
-index 2cfd3b4..e5a68cb 100644
+index 13aa350..0b05225 100644
 --- a/include/target/target_core_base.h
 +++ b/include/target/target_core_base.h
 @@ -134,7 +134,6 @@ enum se_cmd_flags_table {
@@ -234,10 +234,10 @@ index 2cfd3b4..e5a68cb 100644
  	SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC = 0x00020000,
  	SCF_COMPARE_AND_WRITE		= 0x00080000,
 diff --git a/include/target/target_core_fabric.h b/include/target/target_core_fabric.h
-index eb9d092..a78ee09 100644
+index 6859277f..3c100c1 100644
 --- a/include/target/target_core_fabric.h
 +++ b/include/target/target_core_fabric.h
-@@ -154,7 +154,6 @@ int	target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
+@@ -161,7 +161,6 @@ int	target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
  int	transport_generic_free_cmd(struct se_cmd *, int);
  
  bool	transport_wait_for_tasks(struct se_cmd *);

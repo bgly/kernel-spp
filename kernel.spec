@@ -149,8 +149,10 @@ Source3: cpupower.config
 
 #Custom Patches
 Patch9999: 0001-Revert-x86-fpu-Don-t-export-__kernel_fpu_-begin-end.patch
-Patch10001: 0001-scsi-target-core-Fix-TAS-handling-for-aborted-comman.patch
-Patch10002: 0002-scsi-target-core-Make-ABORT-and-LUN-RESET-handling-s.patch
+Patch10001: 0001-scsi-target-core-Make-it-possible-to-wait-from-more-.patch
+Patch10002: 0001-scsi-target-core-Simplify-the-code-for-aborting-SCSI.patch
+Patch10003: 0001-scsi-target-core-Fix-TAS-handling-for-aborted-comman.patch
+Patch10004: 0002-scsi-target-core-Make-ABORT-and-LUN-RESET-handling-s.patch
 
 # Do not package the source tarball.
 NoSource: 0
