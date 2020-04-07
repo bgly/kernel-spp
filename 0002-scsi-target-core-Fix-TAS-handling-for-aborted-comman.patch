@@ -1,4 +1,4 @@
-From 88ac2a4fbb4b07cbdfdf33139c11afeee0ca26c1 Mon Sep 17 00:00:00 2001
+From f80085f2c5a2a36ba70851af374f8a125ee2d6f7 Mon Sep 17 00:00:00 2001
 From: Bart Van Assche <bvanassche@acm.org>
 Date: Tue, 27 Nov 2018 15:52:02 -0800
 Subject: [PATCH 2/3] scsi: target/core: Fix TAS handling for aborted commands

@@ -1,4 +1,4 @@
-From 08b0bb8e27d8c5352ffa80f6fceca8927eb945d0 Mon Sep 17 00:00:00 2001
+From 0c29e04a198afd56d27f87916ba61c62cd088e8d Mon Sep 17 00:00:00 2001
 From: Bart Van Assche <bvanassche@acm.org>
 Date: Tue, 27 Nov 2018 15:52:03 -0800
 Subject: [PATCH 3/3] scsi: target/core: Make ABORT and LUN RESET handling
@@ -135,7 +135,7 @@ index bca0f8a25f92..a89b34587005 100644
  }
  
 diff --git a/drivers/target/target_core_transport.c b/drivers/target/target_core_transport.c
-index 57c2041e0fdd..76c7c1a2084a 100644
+index 57c2041e0fdd..74358cc85c54 100644
 --- a/drivers/target/target_core_transport.c
 +++ b/drivers/target/target_core_transport.c
 @@ -695,32 +695,6 @@ static void transport_lun_remove_cmd(struct se_cmd *cmd)
@@ -336,8 +336,8 @@ index 57c2041e0fdd..76c7c1a2084a 100644
 +{
 +	DECLARE_COMPLETION_ONSTACK(compl);
 +
-+	WARN_ON_ONCE(cmd->abrt_compl);
-+	cmd->abrt_compl = &compl;
++	WARN_ON_ONCE(cmd->compl);
++	cmd->compl = &compl;
 +	target_put_sess_cmd(cmd);
 +	wait_for_completion(&compl);
 +}
