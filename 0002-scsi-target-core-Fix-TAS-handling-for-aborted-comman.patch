@@ -1,7 +1,7 @@
-From 66702104bf504aa43476ffebd49c14c17b09ef93 Mon Sep 17 00:00:00 2001
+From 88ac2a4fbb4b07cbdfdf33139c11afeee0ca26c1 Mon Sep 17 00:00:00 2001
 From: Bart Van Assche <bvanassche@acm.org>
 Date: Tue, 27 Nov 2018 15:52:02 -0800
-Subject: [PATCH 1/2] scsi: target/core: Fix TAS handling for aborted commands
+Subject: [PATCH 2/3] scsi: target/core: Fix TAS handling for aborted commands
 
 The TASK ABORTED STATUS (TAS) bit is defined as follows in SAM:
 "TASK_ABORTED: this status shall be returned if a command is aborted by a
@@ -29,19 +29,19 @@ Cc: Hannes Reinecke <hare@suse.de>
 Signed-off-by: Bart Van Assche <bvanassche@acm.org>
 Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
 ---
- drivers/target/iscsi/iscsi_target.c      | 11 ++-----
- drivers/target/iscsi/iscsi_target_erl1.c | 28 ++--------------
+ drivers/target/iscsi/iscsi_target.c      | 11 ++---
+ drivers/target/iscsi/iscsi_target_erl1.c | 28 ++----------
  drivers/target/target_core_tmr.c         |  3 +-
- drivers/target/target_core_transport.c   | 55 ++------------------------------
+ drivers/target/target_core_transport.c   | 55 +-----------------------
  include/target/target_core_base.h        |  1 -
  include/target/target_core_fabric.h      |  1 -
  6 files changed, 10 insertions(+), 89 deletions(-)
 
 diff --git a/drivers/target/iscsi/iscsi_target.c b/drivers/target/iscsi/iscsi_target.c
-index 03e9cb1..1853143 100644
+index 03e9cb156df9..1853143aa631 100644
 --- a/drivers/target/iscsi/iscsi_target.c
 +++ b/drivers/target/iscsi/iscsi_target.c
-@@ -1493,8 +1493,6 @@ static void iscsit_do_crypto_hash_buf(struct ahash_request *hash,
+@@ -1493,8 +1493,6 @@ __iscsit_check_dataout_hdr(struct iscsi_conn *conn, void *buf,
  			if (hdr->flags & ISCSI_FLAG_CMD_FINAL)
  				iscsit_stop_dataout_timer(cmd);
  
@@ -50,7 +50,7 @@ index 03e9cb1..1853143 100644
  			return iscsit_dump_data_payload(conn, payload_length, 1);
  		}
  	} else {
-@@ -1509,12 +1507,9 @@ static void iscsit_do_crypto_hash_buf(struct ahash_request *hash,
+@@ -1509,12 +1507,9 @@ __iscsit_check_dataout_hdr(struct iscsi_conn *conn, void *buf,
  		 * TASK_ABORTED status.
  		 */
  		if (se_cmd->transport_state & CMD_T_ABORTED) {
@@ -67,7 +67,7 @@ index 03e9cb1..1853143 100644
  			return iscsit_dump_data_payload(conn, payload_length, 1);
  		}
 diff --git a/drivers/target/iscsi/iscsi_target_erl1.c b/drivers/target/iscsi/iscsi_target_erl1.c
-index 5efa42b..cb3ee0f 100644
+index 5efa42b939a1..cb3ee0f11c9e 100644
 --- a/drivers/target/iscsi/iscsi_target_erl1.c
 +++ b/drivers/target/iscsi/iscsi_target_erl1.c
 @@ -943,20 +943,8 @@ int iscsit_execute_cmd(struct iscsi_cmd *cmd, int ooo)
@@ -121,7 +121,7 @@ index 5efa42b..cb3ee0f 100644
  
  			iscsit_set_unsoliticed_dataout(cmd);
 diff --git a/drivers/target/target_core_tmr.c b/drivers/target/target_core_tmr.c
-index 6d1179a..bca0f8a 100644
+index 6d1179a7f043..bca0f8a25f92 100644
 --- a/drivers/target/target_core_tmr.c
 +++ b/drivers/target/target_core_tmr.c
 @@ -165,7 +165,8 @@ void core_tmr_abort_task(
@@ -135,10 +135,10 @@ index 6d1179a..bca0f8a 100644
  
  		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 diff --git a/drivers/target/target_core_transport.c b/drivers/target/target_core_transport.c
-index fb642a6..4202b01 100644
+index fc3093d21b96..57c2041e0fdd 100644
 --- a/drivers/target/target_core_transport.c
 +++ b/drivers/target/target_core_transport.c
-@@ -1813,7 +1813,7 @@ void transport_generic_request_failure(struct se_cmd *cmd,
+@@ -1797,7 +1797,7 @@ void transport_generic_request_failure(struct se_cmd *cmd,
  	     cmd->transport_complete_callback)
  		cmd->transport_complete_callback(cmd, false, &post_ret);
  
@@ -147,7 +147,7 @@ index fb642a6..4202b01 100644
  		return;
  
  	switch (sense_reason) {
-@@ -2020,8 +2020,6 @@ static bool target_handle_task_attr(struct se_cmd *cmd)
+@@ -2004,8 +2004,6 @@ static bool target_handle_task_attr(struct se_cmd *cmd)
  	return true;
  }
  
@@ -156,7 +156,7 @@ index fb642a6..4202b01 100644
  void target_execute_cmd(struct se_cmd *cmd)
  {
  	/*
-@@ -2031,7 +2029,7 @@ void target_execute_cmd(struct se_cmd *cmd)
+@@ -2015,7 +2013,7 @@ void target_execute_cmd(struct se_cmd *cmd)
  	 * If the received CDB has aleady been aborted stop processing it here.
  	 */
  	spin_lock_irq(&cmd->t_state_lock);
@@ -165,7 +165,7 @@ index fb642a6..4202b01 100644
  		spin_unlock_irq(&cmd->t_state_lock);
  		return;
  	}
-@@ -3270,55 +3268,6 @@ static void translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason)
+@@ -3250,55 +3248,6 @@ transport_send_check_condition_and_sense(struct se_cmd *cmd,
  }
  EXPORT_SYMBOL(transport_send_check_condition_and_sense);
  
@@ -222,7 +222,7 @@ index fb642a6..4202b01 100644
  {
  	unsigned long flags;
 diff --git a/include/target/target_core_base.h b/include/target/target_core_base.h
-index 13aa350..0b05225 100644
+index 7a4ee7852ca4..da8a8683852d 100644
 --- a/include/target/target_core_base.h
 +++ b/include/target/target_core_base.h
 @@ -134,7 +134,6 @@ enum se_cmd_flags_table {
@@ -234,10 +234,10 @@ index 13aa350..0b05225 100644
  	SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC = 0x00020000,
  	SCF_COMPARE_AND_WRITE		= 0x00080000,
 diff --git a/include/target/target_core_fabric.h b/include/target/target_core_fabric.h
-index 6859277f..3c100c1 100644
+index f4147b398431..55963de45dde 100644
 --- a/include/target/target_core_fabric.h
 +++ b/include/target/target_core_fabric.h
-@@ -161,7 +161,6 @@ int	target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
+@@ -154,7 +154,6 @@ void	target_execute_cmd(struct se_cmd *cmd);
  int	transport_generic_free_cmd(struct se_cmd *, int);
  
  bool	transport_wait_for_tasks(struct se_cmd *);
@@ -246,5 +246,5 @@ index 6859277f..3c100c1 100644
  		sense_reason_t, int);
  int	target_get_sess_cmd(struct se_cmd *, bool);
 -- 
-1.8.3.1
+2.23.0
 

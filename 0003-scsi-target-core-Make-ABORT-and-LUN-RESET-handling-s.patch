@@ -1,7 +1,7 @@
-From 2ced2ccd2a1275e3aa81a6e07ece07a2f6e8bb84 Mon Sep 17 00:00:00 2001
+From 08b0bb8e27d8c5352ffa80f6fceca8927eb945d0 Mon Sep 17 00:00:00 2001
 From: Bart Van Assche <bvanassche@acm.org>
 Date: Tue, 27 Nov 2018 15:52:03 -0800
-Subject: [PATCH 2/2] scsi: target/core: Make ABORT and LUN RESET handling
+Subject: [PATCH 3/3] scsi: target/core: Make ABORT and LUN RESET handling
  synchronous
 
 Instead of invoking target driver callback functions from the context that
@@ -31,16 +31,16 @@ Signed-off-by: Bart Van Assche <bvanassche@acm.org>
 Signed-off-by: Martin K. Petersen <martin.petersen@oracle.com>
 ---
  drivers/target/target_core_internal.h  |   2 -
- drivers/target/target_core_tmr.c       |  49 ++++---
- drivers/target/target_core_transport.c | 230 +++++++++++++++++----------------
+ drivers/target/target_core_tmr.c       |  49 ++---
+ drivers/target/target_core_transport.c | 249 ++++++++++++-------------
  include/target/target_core_fabric.h    |   1 +
- 4 files changed, 148 insertions(+), 134 deletions(-)
+ 4 files changed, 148 insertions(+), 153 deletions(-)
 
 diff --git a/drivers/target/target_core_internal.h b/drivers/target/target_core_internal.h
-index 0c66355..8533444 100644
+index 0c6635587930..853344415963 100644
 --- a/drivers/target/target_core_internal.h
 +++ b/drivers/target/target_core_internal.h
-@@ -138,7 +138,6 @@ struct se_node_acl *core_tpg_add_initiator_node_acl(struct se_portal_group *tpg,
+@@ -138,7 +138,6 @@ int	init_se_kmem_caches(void);
  void	release_se_kmem_caches(void);
  u32	scsi_get_new_index(scsi_index_t);
  void	transport_subsystem_check_init(void);
@@ -48,7 +48,7 @@ index 0c66355..8533444 100644
  unsigned char *transport_dump_cmd_direction(struct se_cmd *);
  void	transport_dump_dev_state(struct se_device *, char *, int *);
  void	transport_dump_dev_info(struct se_device *, struct se_lun *,
-@@ -148,7 +147,6 @@ void	transport_dump_dev_info(struct se_device *, struct se_lun *,
+@@ -148,7 +147,6 @@ int	transport_dump_vpd_assoc(struct t10_vpd *, unsigned char *, int);
  int	transport_dump_vpd_ident_type(struct t10_vpd *, unsigned char *, int);
  int	transport_dump_vpd_ident(struct t10_vpd *, unsigned char *, int);
  void	transport_clear_lun_ref(struct se_lun *);
@@ -57,7 +57,7 @@ index 0c66355..8533444 100644
  void	target_qf_do_work(struct work_struct *work);
  bool	target_check_wce(struct se_device *dev);
 diff --git a/drivers/target/target_core_tmr.c b/drivers/target/target_core_tmr.c
-index bca0f8a..a89b345 100644
+index bca0f8a25f92..a89b34587005 100644
 --- a/drivers/target/target_core_tmr.c
 +++ b/drivers/target/target_core_tmr.c
 @@ -171,11 +171,15 @@ void core_tmr_abort_task(
@@ -135,10 +135,10 @@ index bca0f8a..a89b345 100644
  }
  
 diff --git a/drivers/target/target_core_transport.c b/drivers/target/target_core_transport.c
-index 4202b01..e516b52 100644
+index 57c2041e0fdd..76c7c1a2084a 100644
 --- a/drivers/target/target_core_transport.c
 +++ b/drivers/target/target_core_transport.c
-@@ -710,32 +710,6 @@ static void transport_lun_remove_cmd(struct se_cmd *cmd)
+@@ -695,32 +695,6 @@ static void transport_lun_remove_cmd(struct se_cmd *cmd)
  		percpu_ref_put(&lun->lun_ref);
  }
  
@@ -171,7 +171,7 @@ index 4202b01..e516b52 100644
  static void target_complete_failure_work(struct work_struct *work)
  {
  	struct se_cmd *cmd = container_of(work, struct se_cmd, work);
-@@ -785,12 +759,88 @@ void transport_copy_sense_to_cmd(struct se_cmd *cmd, unsigned char *sense)
+@@ -770,12 +744,88 @@ void transport_copy_sense_to_cmd(struct se_cmd *cmd, unsigned char *sense)
  }
  EXPORT_SYMBOL(transport_copy_sense_to_cmd);
  
@@ -261,7 +261,7 @@ index 4202b01..e516b52 100644
  	cmd->scsi_status = scsi_status;
  
  	spin_lock_irqsave(&cmd->t_state_lock, flags);
-@@ -806,25 +856,7 @@ void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
+@@ -791,25 +841,7 @@ void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
  		break;
  	}
  
@@ -288,7 +288,7 @@ index 4202b01..e516b52 100644
  		INIT_WORK(&cmd->work, target_complete_failure_work);
  	} else {
  		INIT_WORK(&cmd->work, target_complete_ok_work);
-@@ -1813,8 +1845,11 @@ void transport_generic_request_failure(struct se_cmd *cmd,
+@@ -1797,8 +1829,11 @@ void transport_generic_request_failure(struct se_cmd *cmd,
  	     cmd->transport_complete_callback)
  		cmd->transport_complete_callback(cmd, false, &post_ret);
  
@@ -301,14 +301,15 @@ index 4202b01..e516b52 100644
  
  	switch (sense_reason) {
  	case TCM_NON_EXISTENT_LUN:
-@@ -2028,20 +2063,10 @@ void target_execute_cmd(struct se_cmd *cmd)
+@@ -2012,20 +2047,10 @@ void target_execute_cmd(struct se_cmd *cmd)
  	 *
  	 * If the received CDB has aleady been aborted stop processing it here.
  	 */
 -	spin_lock_irq(&cmd->t_state_lock);
 -	if (cmd->transport_state & CMD_T_ABORTED) {
 -		spin_unlock_irq(&cmd->t_state_lock);
--		return;
++	if (target_cmd_interrupted(cmd))
+ 		return;
 -	}
 -	if (cmd->transport_state & CMD_T_STOP) {
 -		pr_debug("%s:%d CMD_T_STOP for ITT: 0x%08llx\n",
@@ -316,18 +317,18 @@ index 4202b01..e516b52 100644
 -
 -		spin_unlock_irq(&cmd->t_state_lock);
 -		complete_all(&cmd->t_transport_stop_comp);
-+	if (target_cmd_interrupted(cmd))
- 		return;
+-		return;
 -	}
  
 +	spin_lock_irq(&cmd->t_state_lock);
  	cmd->t_state = TRANSPORT_PROCESSING;
  	cmd->transport_state &= ~CMD_T_PRE_EXECUTE;
  	cmd->transport_state |= CMD_T_ACTIVE | CMD_T_SENT;
-@@ -2655,13 +2680,29 @@ static void target_wait_free_cmd(struct se_cmd *cmd, bool *aborted, bool *tas)
+@@ -2637,14 +2662,30 @@ static void target_wait_free_cmd(struct se_cmd *cmd, bool *aborted, bool *tas)
+ 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
  }
  
- /*
++/*
 + * Call target_put_sess_cmd() and wait until target_release_cmd_kref(@cmd) has
 + * finished.
 + */
@@ -341,7 +342,7 @@ index 4202b01..e516b52 100644
 +	wait_for_completion(&compl);
 +}
 +
-+/*
+ /*
   * This function is called by frontend drivers after processing of a command
   * has finished.
   *
@@ -357,7 +358,7 @@ index 4202b01..e516b52 100644
   * - During regular command processing the target core sets CMD_T_COMPLETE
   *   before invoking one of the .queue_*() functions.
   * - The code that aborts commands skips commands and TMFs for which
-@@ -2673,7 +2714,7 @@ static void target_wait_free_cmd(struct se_cmd *cmd, bool *aborted, bool *tas)
+@@ -2656,7 +2697,7 @@ static void target_wait_free_cmd(struct se_cmd *cmd, bool *aborted, bool *tas)
   * - For aborted commands for which CMD_T_TAS has been set .queue_status() will
   *   be called and will drop a reference.
   * - For aborted commands for which CMD_T_TAS has not been set .aborted_task()
@@ -366,17 +367,17 @@ index 4202b01..e516b52 100644
   */
  int transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
  {
-@@ -2698,8 +2739,7 @@ int transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
+@@ -2681,8 +2722,7 @@ int transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
  	}
  	if (aborted)
- 		cmd->free_compl = &compl;
+ 		cmd->compl = &compl;
 -	if (!aborted || tas)
 -		ret = target_put_sess_cmd(cmd);
 +	ret = target_put_sess_cmd(cmd);
  	if (aborted) {
  		pr_debug("Detected CMD_T_ABORTED for ITT: %llu\n", cmd->tag);
  		wait_for_completion(&compl);
-@@ -3252,6 +3292,8 @@ static void translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason)
+@@ -3232,6 +3272,8 @@ transport_send_check_condition_and_sense(struct se_cmd *cmd,
  {
  	unsigned long flags;
  
@@ -385,7 +386,7 @@ index 4202b01..e516b52 100644
  	spin_lock_irqsave(&cmd->t_state_lock, flags);
  	if (cmd->se_cmd_flags & SCF_SENT_CHECK_CONDITION) {
  		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-@@ -3268,46 +3310,15 @@ static void translate_sense_reason(struct se_cmd *cmd, sense_reason_t reason)
+@@ -3248,65 +3290,15 @@ transport_send_check_condition_and_sense(struct se_cmd *cmd,
  }
  EXPORT_SYMBOL(transport_send_check_condition_and_sense);
  
@@ -401,6 +402,25 @@ index 4202b01..e516b52 100644
 -	}
 -	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 -
+-	/*
+-	 * If there are still expected incoming fabric WRITEs, we wait
+-	 * until until they have completed before sending a TASK_ABORTED
+-	 * response.  This response with TASK_ABORTED status will be
+-	 * queued back to fabric module by transport_check_aborted_status().
+-	 */
+-	if (cmd->data_direction == DMA_TO_DEVICE) {
+-		if (cmd->se_tfo->write_pending_status(cmd) != 0) {
+-			spin_lock_irqsave(&cmd->t_state_lock, flags);
+-			if (cmd->se_cmd_flags & SCF_SEND_DELAYED_TAS) {
+-				spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+-				goto send_abort;
+-			}
+-			cmd->se_cmd_flags |= SCF_SEND_DELAYED_TAS;
+-			spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+-			return;
+-		}
+-	}
+-send_abort:
 -	cmd->scsi_status = SAM_STAT_TASK_ABORTED;
 -
 -	transport_lun_remove_cmd(cmd);
@@ -434,7 +454,7 @@ index 4202b01..e516b52 100644
  
  	switch (tmr->function) {
  	case TMR_ABORT_TASK:
-@@ -3341,18 +3352,16 @@ static void target_tmr_work(struct work_struct *work)
+@@ -3340,18 +3332,16 @@ static void target_tmr_work(struct work_struct *work)
  		break;
  	}
  
@@ -459,7 +479,7 @@ index 4202b01..e516b52 100644
  }
  
  int transport_generic_handle_tmr(
-@@ -3371,11 +3380,10 @@ int transport_generic_handle_tmr(
+@@ -3370,11 +3360,10 @@ int transport_generic_handle_tmr(
  	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
  
  	if (aborted) {
@@ -476,10 +496,10 @@ index 4202b01..e516b52 100644
  	}
  
 diff --git a/include/target/target_core_fabric.h b/include/target/target_core_fabric.h
-index 3c100c1..c6d6bfd 100644
+index 55963de45dde..ca18193b1574 100644
 --- a/include/target/target_core_fabric.h
 +++ b/include/target/target_core_fabric.h
-@@ -156,6 +156,7 @@ int	target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
+@@ -149,6 +149,7 @@ int	target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
  int	transport_handle_cdb_direct(struct se_cmd *);
  sense_reason_t	transport_generic_new_cmd(struct se_cmd *);
  
@@ -488,5 +508,5 @@ index 3c100c1..c6d6bfd 100644
  
  int	transport_generic_free_cmd(struct se_cmd *, int);
 -- 
-1.8.3.1
+2.23.0
 
