@@ -60,7 +60,7 @@
 %endif
 
 # Set pkg_release.
-%define pkg_release 1c%{?buildid}%{?dist}
+%define pkg_release 2c%{?buildid}%{?dist}
 
 #
 # Three sets of minimum package version requirements in the form of Conflicts.
@@ -152,6 +152,7 @@ Patch9999: 0001-Revert-x86-fpu-Don-t-export-__kernel_fpu_-begin-end.patch
 Patch10001: 0001-Revert-scsi-target-core-Make-sure-that-target_wait_f.patch
 Patch10002: 0002-scsi-target-core-Fix-TAS-handling-for-aborted-comman.patch 
 Patch10003: 0003-scsi-target-core-Make-ABORT-and-LUN-RESET-handling-s.patch
+Patch10004: 0004-scsi-target-core-Simplify-transport_clear_lun_ref.patch
 
 # Do not package the source tarball.
 NoSource: 0
